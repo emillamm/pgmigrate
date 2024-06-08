@@ -25,7 +25,7 @@ func TestMigrate(t *testing.T) {
 		return
 	}
 
-	// Set up connection
+	// Set up parent connection
 	connStr := fmt.Sprintf("user=%s password=%s host=%s port=%d sslmode=disable", user, password, host, port)
 	db, err := openConnection(connStr)
 	if err != nil {
@@ -34,31 +34,11 @@ func TestMigrate(t *testing.T) {
 	}
 	defer db.Close()
 
-	//t.Run("Run should update password when AllowUpdatePassword is set and authenticating for the first time", func(t *testing.T) {
-	//	//m := NewMigrator()
-	//	//m.Run()
-	//})
-
 	t.Run("RunMigrations should create a migration table if it doesn't exist", func(t *testing.T) {
 		ephemeralSession(t, db, host, port, func(session *sql.DB) {
-			// Helper method to check table existence
-			checkTableExistence := func(shouldExist bool) {
-				q := fmt.Sprintf("select from information_schema.tables where table_name = 'migrations' and table_schema = 'public';")
-				row := session.QueryRow(q)
-				doesExist := true
-				if err := row.Scan(); err != nil {
-					if err != sql.ErrNoRows {
-						t.Errorf("invalid error: %s", err)
-					}
-					doesExist = false
-				}
-				if doesExist != shouldExist {
-					t.Errorf("migration table existence=%t not valid", shouldExist)
-				}
-			}
 
 			// Check that table doesn't exist
-			checkTableExistence(false)
+			verifyTableExistence(t, session, "migrations", false)
 
 			// Perform some migration
 			migrations := []Migration{
@@ -74,7 +54,7 @@ func TestMigrate(t *testing.T) {
 			}
 
 			//// Check that table does exist
-			checkTableExistence(true)
+			verifyTableExistence(t, session, "migrations", true)
 		})
 	})
 
@@ -91,35 +71,9 @@ func TestMigrate(t *testing.T) {
 			if err := RunMigrations(session, migrations, -1); err != nil {
 				t.Errorf("unable to run migrations: %s", err)
 			}
-			//if err := RunMigrations(session, migrations); err != nil {
-			//	if _, ok := err.{MigrationAlreadyProcessedError}; !ok {
-			//		t.Errorf(": %s", err)
-			//	}
-			//}
-			//if _, ok := RunMigrations(session, migrations).{MigrationAlreadyProcessedError}; !ok {
-			//	t.Errorf(": %s", err)
-			//}
-
-			//if err := RunMigrations(session, migrations) && _, ok := err.{MigrationAlreadyProcessedError}; !ok {
-			//	t.Errorf("invalid error: %s", err)
-			//}
-
-			//if _, ok := RunMigrations(session, migrations).(MigrationAlreadyProcessedError); !ok {
-			//	t.Errorf("expected MigrationAlreadyProcessedError but got %v", err)
-			//}
-
-			// If migration is not skipped, it will return an error because table already exists
 			if err := RunMigrations(session, migrations, -1); err != nil {
 				t.Errorf("expected no error when skipping existing migration but got %s", err)
 			}
-
-			//if err := RunMigrations(session, migrations); err != nil {
-			//	if _, ok := err.(MigrationAlreadyProcessedError); !ok {
-			//		t.Errorf("invalid error: %s", err)
-			//	}
-			//} else {
-			//	t.Error("no error returned, expected MigrationAlreadyProcessedError")
-			//}
 		})
 	})
 
@@ -198,27 +152,72 @@ func TestMigrate(t *testing.T) {
 		})
 	})
 
-	//t.Run("RunMigrations should skip a migration if it was already processed", func(t *testing.T) {
-	//	ephemeralSession(t, db, host, port, func(session *sql.DB) {
-	//	})
-	//})
+	t.Run("RunMigrations should complete all migrations", func(t *testing.T) {
+		ephemeralSession(t, db, host, port, func(session *sql.DB) {
+			migrations := []Migration{
+				Migration{
+					Id: "001",
+					Statements: []string{
+						"create table test_table1(id text)",
+					},
+				},
+				Migration{
+					Id: "002",
+					Statements: []string{
+						"create table test_table2(id text)",
+						"create table test_table3(id text)",
+					},
+				},
+			}
+			if err := RunMigrations(session, migrations, -1); err != nil {
+				t.Errorf("failed to run migrations: %v", err)
+			}
 
-	//t.Run("RunMigrations should create prevent the same migration from being run twice", func(t *testing.T) {
-	//	ephemeralSession(t, parentSession, user, pass, host, func(session *gocql.Session, keyspace string) {
-	//		// Perform some migration
-	//		migrations := []Migration{
-	//			Migration{
-	//				Id: "001",
-	//				Statements: []string{
-	//					"invalidcql",
-	//				},
-	//			},
-	//		}
-	//		_ := RunMigrations(session, migrations)
+			// Verify all three tables exist
+			verifyTableExistence(t, session, "test_table1", true)
+			verifyTableExistence(t, session, "test_table2", true)
+			verifyTableExistence(t, session, "test_table3", true)
 
-	//	})
-	//})
-	//t.Run("RunMigrations should execute statements in alphabetical order of id", func(t *testing.T) {
+			// Verify number or records
+			allRecords, err := getAllMigrationRecords(session)
+			if err != nil {
+				t.Errorf("unable to get migration records")
+			}
+			if len(allRecords) != 2 {
+				t.Errorf("unexpected number of records: got %d, wanted 2", len(allRecords))
+			}
+
+			// Verify each record
+			for i, r := range allRecords {
+				if r.id != fmt.Sprintf("00%d", i+1) || r.startedAt == nil || r.completedAt == nil {
+					t.Errorf("got %v, wanted id=00%d, startedAt!=nil, completedAt!=nil", r, i+1)
+				}
+			}
+		})
+	})
+}
+
+
+// -- Helper methods
+
+func verifyTableExistence(
+	t testing.TB,
+	session *sql.DB,
+	tableName string,
+	shouldExist bool,
+) {
+	q := fmt.Sprintf("select from information_schema.tables where table_name = '%s' and table_schema = 'public';", tableName)
+	row := session.QueryRow(q)
+	doesExist := true
+	if err := row.Scan(); err != nil {
+		if err != sql.ErrNoRows {
+			t.Errorf("invalid error: %s", err)
+		}
+		doesExist = false
+	}
+	if doesExist != shouldExist {
+		t.Errorf("table %s existence=%t not valid", tableName, shouldExist)
+	}
 }
 
 func ephemeralSession(
@@ -229,8 +228,6 @@ func ephemeralSession(
 	block func(session *sql.DB),
 ) {
 	t.Helper()
-	//var err error
-	//var session *sql.DB
 
 	user := randomUser()
 	password := "test"
@@ -280,7 +277,7 @@ func openConnection(connStr string) (db *sql.DB, err error) {
 	return
 }
 
-// Generates keyspace name in the form of "test_[a-z]7" e.g. test_hqbrluz
+// Generates user/DB name in the form of "test_[a-z]7" e.g. test_hqbrluz
 func randomUser() string {
 	chars := "abcdefghijklmnopqrstuvwxyz"
 	length := 7

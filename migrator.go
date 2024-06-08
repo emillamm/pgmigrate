@@ -8,21 +8,10 @@ import (
 	"slices"
 )
 
-//type Migrator struct {
-//	provider MigrationProvider
-//	//cassandra Cassandra
-//	AllowUpdatePassword bool
-//}
-//
-//func (m *Migrator) Run() error {
-//	//if m.AllowUpdatePassword {
-//	//}
-//}
-
 func RunMigrations(
 	session *sql.DB,
 	migrations []Migration,
-	ignoreStaleMigrationsAfterSeconds float64,
+	retryAfterSeconds int,
 ) error {
 
 	if err := initMigrationsTable(session); err != nil {
@@ -36,7 +25,7 @@ func RunMigrations(
 
 	if inProgressRecords, latest := getInProgressRecords(records); len(inProgressRecords) > 0 {
 		secondsSinceLatest := getCurrentTime(session).Sub(*latest.startedAt).Seconds()
-		if ignoreStaleMigrationsAfterSeconds > secondsSinceLatest || ignoreStaleMigrationsAfterSeconds < 0 {
+		if retryAfterSeconds < 0 || float64(retryAfterSeconds) > secondsSinceLatest {
 			var ids []string
 			for _, r := range inProgressRecords {
 				ids = append(ids, r.id)
@@ -46,9 +35,6 @@ func RunMigrations(
 	}
 
 	for _, m := range migrations {
-		//isCompleted := slices.ContainsFunc(records, func(r migrationRecord) bool {
-		//	r.Id == m.Id && r.completedAt != nil
-		//})
 		if isCompleted(records, m.Id) {
 			break
 		}
@@ -86,15 +72,6 @@ func getInProgressRecords(allRecords []migrationRecord) (records []migrationReco
 	}
 	return
 }
-
-//func getInProgressMigrations(session *sql.DB, until time.Time) []string {
-//	q := "select id from migrations where completed_at is null and started_at < $1"
-//	rows, err := session.Query(q, until)
-//	if err != nil {
-//		log.Fatalf("failed to get in progress rows: %s", err)
-//	}
-//
-//}
 
 type migrationRecord struct {
 	id string
@@ -136,21 +113,6 @@ func isCompleted(records []migrationRecord, id string) bool {
 	})
 }
 
-//func scanMigrationRows(rows *sql.Rows) (rows []migrationRow, err error) {
-//	defer rows.Close()
-//	for rows.Next() {
-//		var (
-//			id string
-//			startedAt time.Time
-//			completedAt time.Time
-//		)
-//		if err := rows.Scan(); err != nil {
-//			log.Fatalf("failed to scan rows in migration table: %s", err)
-//		}
-//
-//	}
-//}
-
 func isAlreadyProcessed(session *sql.DB, migrationId string) bool {
 	q := fmt.Sprintf("select from migrations where id = '%s'", migrationId)
 	row := session.QueryRow(q)
@@ -171,7 +133,6 @@ func markAsInProgress(session *sql.DB, migrationId string, currentTime time.Time
 }
 
 func markAsCompleted(session *sql.DB, migrationId string, currentTime time.Time) {
-	//q := "update migrations set completed_at = $2 where id = $1;"
 	q := "insert into migrations (id, completed_at) values ($1, $2) on conflict (id) do update set completed_at = $2;"
 	if _, err := session.Exec(q, migrationId, currentTime); err != nil {
 		log.Fatalf("failed to mark migration %s as completed: %s", migrationId, err)
