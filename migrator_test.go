@@ -108,22 +108,18 @@ func TestMigrate(t *testing.T) {
 
 			initMigrationsTable(session)
 			markAsCompleted(session, "001", getCurrentTime(session))
-			markAsInProgress(session, "002", getCurrentTime(session))
-			markAsInProgress(session, "003", getCurrentTime(session))
+			markAsStarted(session, "002", getCurrentTime(session))
+			markAsStarted(session, "003", getCurrentTime(session))
 
-			//time.Sleep(5 * time.Second)
 			err := RunMigrations(session, migrations, -1)
-			inProgressErr, ok := err.(InProgressMigrationsError)
+			startedErr, ok := err.(InProgressMigrationsError)
 			if !ok {
 				t.Errorf("expected InProgressMigrationsError but got %v", err)
 				return
 			}
-			if inProgressErr.Ids[0] != "002" || inProgressErr.Ids[1] != "003" {
+			if startedErr.Ids[0] != "002" || startedErr.Ids[1] != "003" {
 				t.Errorf("InProgressMigrationsError did not contain expected migrations 002 and 003: %v", err)
 			}
-
-			//v, e := getAllMigrationRecords(session)
-			//t.Errorf("e %v, v %v", e,v)
 		})
 	})
 
@@ -145,7 +141,7 @@ func TestMigrate(t *testing.T) {
 			}
 			initMigrationsTable(session)
 			startedAt := getCurrentTime(session).Add(-10 * time.Second)
-			markAsInProgress(session, "001", startedAt)
+			markAsStarted(session, "001", startedAt)
 			if err := RunMigrations(session, migrations, 5); err != nil {
 				t.Errorf("failed to ignore in-progress migration: %v", err)
 			}
@@ -179,7 +175,7 @@ func TestMigrate(t *testing.T) {
 			verifyTableExistence(t, session, "test_table3", true)
 
 			// Verify number or records
-			allRecords, err := getAllMigrationRecords(session)
+			allRecords, err := getAllRecords(session)
 			if err != nil {
 				t.Errorf("unable to get migration records")
 			}

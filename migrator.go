@@ -18,16 +18,16 @@ func RunMigrations(
 		return fmt.Errorf("failed to create migrations table: %v", err)
 	}
 
-	records, err := getAllMigrationRecords(session)
+	records, err := getAllRecords(session)
 	if err != nil {
 		return fmt.Errorf("failed to read migrations: %v", err)
 	}
 
-	if inProgressRecords, latest := getInProgressRecords(records); len(inProgressRecords) > 0 {
+	if startedRecords, latest := getStartedRecords(records); len(startedRecords) > 0 {
 		secondsSinceLatest := getCurrentTime(session).Sub(*latest.startedAt).Seconds()
 		if retryAfterSeconds < 0 || float64(retryAfterSeconds) > secondsSinceLatest {
 			var ids []string
-			for _, r := range inProgressRecords {
+			for _, r := range startedRecords {
 				ids = append(ids, r.id)
 			}
 			return InProgressMigrationsError{Ids: ids, SecondsSinceLatest: secondsSinceLatest}
@@ -38,7 +38,7 @@ func RunMigrations(
 		if isCompleted(records, m.Id) {
 			break
 		}
-		markAsInProgress(session, m.Id, getCurrentTime(session))
+		markAsStarted(session, m.Id, getCurrentTime(session))
 		for i, s := range m.Statements {
 			if _, err := session.Exec(s); err != nil {
 				return fmt.Errorf("failed to process statement %d in migration %s: %s", i, m.Id, err)
@@ -57,7 +57,7 @@ func initMigrationsTable(session *sql.DB) error {
 	return nil
 }
 
-func getInProgressRecords(allRecords []migrationRecord) (records []migrationRecord, latest *migrationRecord) {
+func getStartedRecords(allRecords []record) (records []record, latest *record) {
 	for _, r := range allRecords {
 		if r.startedAt != nil && r.completedAt == nil {
 			records = append(records, r)
@@ -73,13 +73,13 @@ func getInProgressRecords(allRecords []migrationRecord) (records []migrationReco
 	return
 }
 
-type migrationRecord struct {
+type record struct {
 	id string
 	startedAt *time.Time
 	completedAt *time.Time
 }
 
-func getAllMigrationRecords(session *sql.DB) (migrations []migrationRecord, err error) {
+func getAllRecords(session *sql.DB) (migrations []record, err error) {
 	q := "select id, started_at, completed_at from migrations"
 	rows, err := session.Query(q)
 	if err != nil {
@@ -97,7 +97,7 @@ func getAllMigrationRecords(session *sql.DB) (migrations []migrationRecord, err 
 			err = fmt.Errorf("failed to scan rows in migration table: %s", err)
 			return
 		}
-		migrations = append(migrations, migrationRecord{
+		migrations = append(migrations, record{
 			id: id,
 			startedAt: startedAt,
 			completedAt: completedAt,
@@ -107,25 +107,13 @@ func getAllMigrationRecords(session *sql.DB) (migrations []migrationRecord, err 
 	return
 }
 
-func isCompleted(records []migrationRecord, id string) bool {
-	return slices.ContainsFunc(records, func(r migrationRecord) bool {
+func isCompleted(records []record, id string) bool {
+	return slices.ContainsFunc(records, func(r record) bool {
 		return r.id == id && r.completedAt != nil
 	})
 }
 
-func isAlreadyProcessed(session *sql.DB, migrationId string) bool {
-	q := fmt.Sprintf("select from migrations where id = '%s'", migrationId)
-	row := session.QueryRow(q)
-	if err := row.Scan(); err != nil {
-		if err != sql.ErrNoRows {
-			log.Fatal(err)
-		}
-		return false
-	}
-	return true
-}
-
-func markAsInProgress(session *sql.DB, migrationId string, currentTime time.Time) {
+func markAsStarted(session *sql.DB, migrationId string, currentTime time.Time) {
 	q := "insert into migrations (id, started_at) values ($1, $2) on conflict (id) do update set started_at = $2;"
 	if _, err := session.Exec(q, migrationId, currentTime); err != nil {
 		log.Fatalf("failed to mark migration %s as processed: %s", migrationId, err)
