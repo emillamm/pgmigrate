@@ -1,4 +1,4 @@
-module github.com/emillamm/pg-migrate
+module github.com/emillamm/pgmigrate
 
 go 1.22.3
 

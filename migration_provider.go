@@ -1,4 +1,4 @@
-package main
+package pgmigrate
 
 import (
 	"log"
