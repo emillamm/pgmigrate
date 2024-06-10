@@ -1,0 +1,7 @@
+# Exclude everything
+**/*
+# Except relevant files
+!**/*.go
+!go.mod
+!go.sum
+
