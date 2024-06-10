@@ -14,6 +14,7 @@ RUN go mod download
 
 # Copy the filtered files from the intermediate stage
 COPY --from=intermediate /filtered/ .
+RUN ls -R
 
 RUN CGO_ENABLED=0 GOOS=linux go build -o /pgmigrate ./cmd/pgmigrate
 CMD ["/pgmigrate"]
