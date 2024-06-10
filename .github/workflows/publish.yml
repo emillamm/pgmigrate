@@ -68,6 +68,7 @@ jobs:
         name: Tag docker image and push to container registry
         uses: docker/build-push-action@v5
         with:
+          context: .
           push: true
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.get-version.outputs.nextStrict }}
