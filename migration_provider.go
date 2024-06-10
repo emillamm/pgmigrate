@@ -19,18 +19,18 @@ type MigrationProvider interface {
 }
 
 type FileMigrationProvider struct {
-	directory string
+	Directory string
 }
 
 func (f *FileMigrationProvider) GetMigrations() []Migration {
-	files, err := os.ReadDir(f.directory)
+	files, err := os.ReadDir(f.Directory)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("unable to read files from '%s' folder: %v", f.Directory, err)
 	}
 	var migrations []Migration
 	for _, file := range files {
 		if isValidFileName(file.Name()) {
-			migration := readMigrationFromFile(f.directory, file.Name())
+			migration := readMigrationFromFile(f.Directory, file.Name())
 			migrations= append(migrations, migration)
 		}
 	}
