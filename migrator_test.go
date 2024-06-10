@@ -2,26 +2,24 @@ package pgmigrate
 
 import (
 	"testing"
-	"os"
 	"fmt"
 	"math/rand"
 	"database/sql"
 	_ "github.com/lib/pq"
-	"github.com/joho/godotenv"
 	"strconv"
 	"time"
+	"github.com/emillamm/pgmigrate/env"
 )
 
 func TestMigrate(t *testing.T) {
 
-	godotenv.Load("testdata/testconf.env")
 
-	user := os.Getenv("POSTGRES_USER")
-	password := os.Getenv("POSTGRES_PASSWORD")
-	host := os.Getenv("POSTGRES_HOST")
-	port, err := strconv.Atoi(os.Getenv("POSTGRES_PORT"))
+	user := env.GetenvWithDefault("POSTGRES_USER", "postgres")
+	password := env.GetenvWithDefault("POSTGRES_PASSWORD", "postgres")
+	host := env.GetenvWithDefault("POSTGRES_HOST", "localhost")
+	port, err := strconv.Atoi(env.GetenvWithDefault("POSTGRES_PORT", "5432"))
 	if err != nil {
-		t.Errorf("invalid port %d", port)
+		t.Errorf("invalid PORT %d", port)
 		return
 	}
 
@@ -150,6 +148,26 @@ func TestMigrate(t *testing.T) {
 
 	t.Run("RunMigrations should complete all migrations", func(t *testing.T) {
 		ephemeralSession(t, db, host, port, func(session *sql.DB) {
+
+			// Helper to verify inserted records
+			verifyRecords := func (expectedNumberOfRecords int) {
+				// Verify number or records
+				allRecords, err := getAllRecords(session)
+				if err != nil {
+					t.Errorf("unable to get migration records")
+				}
+				if len(allRecords) != expectedNumberOfRecords {
+					t.Errorf("unexpected number of records: got %d, wanted %d", len(allRecords), expectedNumberOfRecords)
+				}
+
+				// Verify each record
+				for i, r := range allRecords {
+					if r.id != fmt.Sprintf("00%d", i+1) || r.startedAt == nil || r.completedAt == nil {
+						t.Errorf("got %v, wanted id=00%d, startedAt!=nil, completedAt!=nil", r, i+1)
+					}
+				}
+			}
+
 			migrations := []Migration{
 				Migration{
 					Id: "001",
@@ -174,21 +192,24 @@ func TestMigrate(t *testing.T) {
 			verifyTableExistence(t, session, "test_table2", true)
 			verifyTableExistence(t, session, "test_table3", true)
 
-			// Verify number or records
-			allRecords, err := getAllRecords(session)
-			if err != nil {
-				t.Errorf("unable to get migration records")
-			}
-			if len(allRecords) != 2 {
-				t.Errorf("unexpected number of records: got %d, wanted 2", len(allRecords))
+			// Verify records
+			verifyRecords(2)
+
+			// Add another migration
+			migrations = append(migrations, Migration{
+				Id: "003",
+				Statements: []string{
+					"create table test_table4(id text)",
+				},
+			})
+
+			if err := RunMigrations(session, migrations, -1); err != nil {
+				t.Errorf("failed to run migrations again: %v", err)
 			}
 
-			// Verify each record
-			for i, r := range allRecords {
-				if r.id != fmt.Sprintf("00%d", i+1) || r.startedAt == nil || r.completedAt == nil {
-					t.Errorf("got %v, wanted id=00%d, startedAt!=nil, completedAt!=nil", r, i+1)
-				}
-			}
+			// Verify again
+			verifyTableExistence(t, session, "test_table4", true)
+			verifyRecords(3)
 		})
 	})
 }

@@ -36,7 +36,7 @@ func RunMigrations(
 
 	for _, m := range migrations {
 		if isCompleted(records, m.Id) {
-			break
+			continue
 		}
 		markAsStarted(session, m.Id, getCurrentTime(session))
 		for i, s := range m.Statements {
