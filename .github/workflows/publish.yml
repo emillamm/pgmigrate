@@ -80,7 +80,7 @@ jobs:
             github.rest.git.createRef({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              ref: "refs/tags/${{ steps.get-version.outputs.nextStrict }}",
+              ref: "refs/tags/${{ steps.get-version.outputs.next }}",
               sha: context.sha
             })
 
