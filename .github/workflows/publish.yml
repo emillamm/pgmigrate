@@ -71,7 +71,7 @@ jobs:
           context: .
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.get-version.outputs.nextStrict }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.get-version.outputs.nextStrict }},${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
 
       - name: Create github tag
         uses: actions/github-script@v6
