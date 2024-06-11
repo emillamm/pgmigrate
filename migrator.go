@@ -12,15 +12,17 @@ func RunMigrations(
 	session *sql.DB,
 	migrations []Migration,
 	retryAfterSeconds int,
-) error {
+) (completed []string, err error) {
 
-	if err := initMigrationsTable(session); err != nil {
-		return fmt.Errorf("failed to create migrations table: %v", err)
+	if err = initMigrationsTable(session); err != nil {
+		err = fmt.Errorf("failed to create migrations table: %v", err)
+		return
 	}
 
 	records, err := getAllRecords(session)
 	if err != nil {
-		return fmt.Errorf("failed to read migrations: %v", err)
+		err = fmt.Errorf("failed to read migrations: %v", err)
+		return
 	}
 
 	if startedRecords, latest := getStartedRecords(records); len(startedRecords) > 0 {
@@ -30,7 +32,8 @@ func RunMigrations(
 			for _, r := range startedRecords {
 				ids = append(ids, r.id)
 			}
-			return InProgressMigrationsError{Ids: ids, SecondsSinceLatest: secondsSinceLatest}
+			err = InProgressMigrationsError{Ids: ids, SecondsSinceLatest: secondsSinceLatest}
+			return
 		}
 	}
 
@@ -40,13 +43,15 @@ func RunMigrations(
 		}
 		markAsStarted(session, m.Id, getCurrentTime(session))
 		for i, s := range m.Statements {
-			if _, err := session.Exec(s); err != nil {
-				return fmt.Errorf("failed to process statement %d in migration %s: %s", i, m.Id, err)
+			if _, err = session.Exec(s); err != nil {
+				err = fmt.Errorf("failed to process statement %d in migration %s: %s", i, m.Id, err)
+				return
 			}
 		}
 		markAsCompleted(session, m.Id, getCurrentTime(session))
+		completed = append(completed, m.Id)
 	}
-	return nil
+	return
 }
 
 func initMigrationsTable(session *sql.DB) error {

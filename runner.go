@@ -34,9 +34,10 @@ func Run() {
 
 	provider := FileMigrationProvider{Directory: migrationDir}
 	migrations := provider.GetMigrations()
-	err = RunMigrations(session, migrations, retryAfterSeconds)
+	completed, err := RunMigrations(session, migrations, retryAfterSeconds)
+	log.Printf("completed %d migrations: %v\n", len(completed), completed)
 	if err != nil {
-		log.Fatalf("unable to run migrations: %v", err)
+		log.Fatalf("unable to complete some or all migrations: %v", err)
 	}
 }
 

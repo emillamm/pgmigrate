@@ -47,7 +47,7 @@ func TestMigrate(t *testing.T) {
 					},
 				},
 			}
-			if err := RunMigrations(session, migrations, -1); err != nil {
+			if _, err := RunMigrations(session, migrations, -1); err != nil {
 				t.Errorf("unable to run migrations: %s", err)
 			}
 
@@ -66,10 +66,10 @@ func TestMigrate(t *testing.T) {
 					},
 				},
 			}
-			if err := RunMigrations(session, migrations, -1); err != nil {
+			if _, err := RunMigrations(session, migrations, -1); err != nil {
 				t.Errorf("unable to run migrations: %s", err)
 			}
-			if err := RunMigrations(session, migrations, -1); err != nil {
+			if _, err := RunMigrations(session, migrations, -1); err != nil {
 				t.Errorf("expected no error when skipping existing migration but got %s", err)
 			}
 		})
@@ -109,7 +109,7 @@ func TestMigrate(t *testing.T) {
 			markAsStarted(session, "002", getCurrentTime(session))
 			markAsStarted(session, "003", getCurrentTime(session))
 
-			err := RunMigrations(session, migrations, -1)
+			completed, err := RunMigrations(session, migrations, -1)
 			startedErr, ok := err.(InProgressMigrationsError)
 			if !ok {
 				t.Errorf("expected InProgressMigrationsError but got %v", err)
@@ -117,6 +117,9 @@ func TestMigrate(t *testing.T) {
 			}
 			if startedErr.Ids[0] != "002" || startedErr.Ids[1] != "003" {
 				t.Errorf("InProgressMigrationsError did not contain expected migrations 002 and 003: %v", err)
+			}
+			if len(completed) > 0 {
+				t.Errorf("expected no completed migrations")
 			}
 		})
 	})
@@ -140,8 +143,12 @@ func TestMigrate(t *testing.T) {
 			initMigrationsTable(session)
 			startedAt := getCurrentTime(session).Add(-10 * time.Second)
 			markAsStarted(session, "001", startedAt)
-			if err := RunMigrations(session, migrations, 5); err != nil {
+			completed, err := RunMigrations(session, migrations, 5)
+			if err != nil {
 				t.Errorf("failed to ignore in-progress migration: %v", err)
+			}
+			if len(completed) != 2 {
+				t.Errorf("expected 2 completed migrations but got %d", len(completed))
 			}
 		})
 	})
@@ -183,8 +190,12 @@ func TestMigrate(t *testing.T) {
 					},
 				},
 			}
-			if err := RunMigrations(session, migrations, -1); err != nil {
+			completed, err := RunMigrations(session, migrations, -1)
+			if err != nil {
 				t.Errorf("failed to run migrations: %v", err)
+			}
+			if len(completed) != 2 {
+				t.Errorf("expected 2 completed migrations but got %d", len(completed))
 			}
 
 			// Verify all three tables exist
@@ -203,8 +214,12 @@ func TestMigrate(t *testing.T) {
 				},
 			})
 
-			if err := RunMigrations(session, migrations, -1); err != nil {
+			completed, err = RunMigrations(session, migrations, -1)
+			if err != nil {
 				t.Errorf("failed to run migrations again: %v", err)
+			}
+			if len(completed) != 1 {
+				t.Errorf("expected 1 completed migration but got %d", len(completed))
 			}
 
 			// Verify again
