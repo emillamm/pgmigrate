@@ -13,13 +13,13 @@ import (
 
 func TestMigrate(t *testing.T) {
 
-
 	user := env.GetenvWithDefault("POSTGRES_USER", "postgres")
 	password := env.GetenvWithDefault("POSTGRES_PASSWORD", "postgres")
 	host := env.GetenvWithDefault("POSTGRES_HOST", "localhost")
-	port, err := strconv.Atoi(env.GetenvWithDefault("POSTGRES_PORT", "5432"))
+	portStr := env.GetenvWithDefault("POSTGRES_PORT", "5432")
+	port, err := strconv.Atoi(portStr)
 	if err != nil {
-		t.Errorf("invalid PORT %d", port)
+		t.Errorf("invalid PORT %s", portStr)
 		return
 	}
 

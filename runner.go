@@ -13,9 +13,10 @@ func Run() {
 	user := env.GetenvOrFatal("POSTGRES_USER")
 	password := env.GetenvOrFatal("POSTGRES_PASSWORD")
 	host := env.GetenvWithDefault("POSTGRES_HOST", "localhost")
-	port, err := strconv.Atoi(env.GetenvWithDefault("POSTGRES_PORT", "5432"))
+	portStr := env.GetenvWithDefault("POSTGRES_PORT", "5432")
+	port, err := strconv.Atoi(portStr)
 	if err != nil {
-		log.Fatalf("invalid PORT %d", port)
+		log.Fatalf("invalid PORT %s", portStr)
 	}
 	migrationDir := env.GetenvWithDefault("POSTGRES_MIGRATION_DIR", "migrations")
 	retryAfterSeconds, err := strconv.Atoi(env.GetenvWithDefault("POSTGRES_MIGRATION_RETRY_INTERVAL", "120"))

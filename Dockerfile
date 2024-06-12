@@ -6,7 +6,7 @@ COPY . .
 RUN ls -R
 RUN CGO_ENABLED=0 GOOS=linux go build -o pgmigrate ./cmd/pgmigrate
 
-FROM gcr.io/distroless/base-debian10
+FROM gcr.io/distroless/base-debian12
 COPY --from=builder /app/pgmigrate /
 CMD ["/pgmigrate"]
 
