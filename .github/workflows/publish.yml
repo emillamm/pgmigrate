@@ -9,9 +9,9 @@ on:
 
 
 env:
-  REGISTRY: ghcr.io
-  NAMESPACE: ${{ github.repository_owner }}
-  IMAGE_NAME: ${{ github.repository }}
+  IMAGE_REGISTRY: ghcr.io
+  IMAGE_NAMESPACE: ${{ github.repository_owner }}
+  REPOSITORY: ${{ github.event.repository.name }}
 
 jobs:
   publish:
@@ -60,7 +60,7 @@ jobs:
       - name: Log in to the container registry
         uses: docker/login-action@v3
         with:
-          registry: ${{ env.REGISTRY }}
+          registry: ${{ env.IMAGE_REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
@@ -71,7 +71,7 @@ jobs:
           context: .
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.get-version.outputs.nextStrict }},${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ env.REPOSITORY }}:${{ steps.get-version.outputs.nextStrict }},${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ env.REPOSITORY }}:latest
 
       - name: Create github tag
         uses: actions/github-script@v6
