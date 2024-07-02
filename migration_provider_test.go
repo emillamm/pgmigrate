@@ -25,6 +25,14 @@ func TestMigrationProvider(t *testing.T) {
 					"create table cars (brand varchar(255));",
 				},
 			},
+			Migration{
+				Id: "002",
+				Statements: []string{
+					"create table chairs ( brand varchar(255) );",
+					"create table tables ( brand varchar(255) );",
+					"create table sofas (brand varchar(255));",
+				},
+			},
 		}
 
 		if !reflect.DeepEqual(got, want) {

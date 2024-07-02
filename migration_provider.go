@@ -53,15 +53,26 @@ func readMigrationFromFile(filePath string, fileName string) Migration {
 		log.Fatal(err)
 	}
 	defer file.Close()
+
+	// scan through lines and concatenate lines that don't end with ';' as statements
 	scanner := bufio.NewScanner(file)
-	var lines []string
+	var statements []string
+	var statement strings.Builder
+	var whitespace string
 	for scanner.Scan() {
-		line := scanner.Text()
-		if line != "" {
-			lines = append(lines, line)
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" {
+			continue
+		}
+		fmt.Fprintf(&statement, "%s%s", whitespace, line)
+		whitespace = " "
+		if line[len(line)-1] == ';' {
+			statements = append(statements, statement.String())
+			statement.Reset()
+			whitespace = ""
 		}
 	}
 	id := strings.Split(fileName, ".")[0]
-	return Migration{Id: id, Statements: lines}
+	return Migration{Id: id, Statements: statements}
 }
 
