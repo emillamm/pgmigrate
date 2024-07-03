@@ -276,27 +276,28 @@ func ephemeralSession(
 		return
 	}
 
+	defer func() {
+		dropDbQ := fmt.Sprintf("drop database %s;", user)
+		if _, err := parentSession.Exec(dropDbQ); err != nil {
+			t.Errorf("failed to drop database %s: %s", user, err)
+			return
+		}
+		dropRoleQ := fmt.Sprintf("drop role %s;", user)
+		if _, err := parentSession.Exec(dropRoleQ); err != nil {
+			t.Errorf("failed to drop role %s: %s", user, err)
+			return
+		}
+	}()
+
 	// Set up connection
-	connStr := fmt.Sprintf("user=%s password=%s host=%s port=%d sslmode=disable", user, password, host, port)
+	connStr := fmt.Sprintf("user=%s password=%s host=%s port=%d database=%s sslmode=disable", user, password, host, port, user)
 	session, err := openConnection(connStr)
 	if err != nil {
 		t.Errorf("failed to open connection %s", err)
 		return
 	}
+	defer session.Close()
 
-	defer func() {
-		session.Close()
-		dropDbQ := fmt.Sprintf("drop database %s;", user)
-		if _, err = parentSession.Exec(dropDbQ); err != nil {
-			t.Errorf("failed to drop database %s: %s", user, err)
-			return
-		}
-		dropRoleQ := fmt.Sprintf("drop role %s;", user)
-		if _, err = parentSession.Exec(dropRoleQ); err != nil {
-			t.Errorf("failed to drop role %s: %s", user, err)
-			return
-		}
-	}()
 
 	block(session)
 }
