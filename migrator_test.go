@@ -1,18 +1,18 @@
 package pgmigrate
 
 import (
-	"testing"
+	"database/sql"
 	"fmt"
 	"math/rand"
-	"database/sql"
-	_ "github.com/lib/pq"
 	"strconv"
+	"testing"
 	"time"
+
 	"github.com/emillamm/pgmigrate/env"
+	_ "github.com/lib/pq"
 )
 
 func TestMigrate(t *testing.T) {
-
 	user := env.GetenvWithDefault("POSTGRES_USER", "postgres")
 	password := env.GetenvWithDefault("POSTGRES_PASSWORD", "postgres")
 	host := env.GetenvWithDefault("POSTGRES_HOST", "localhost")
@@ -22,9 +22,10 @@ func TestMigrate(t *testing.T) {
 		t.Errorf("invalid PORT %s", portStr)
 		return
 	}
+	database := env.GetenvWithDefault("POSTGRES_DATABASE", "postgres")
 
 	// Set up parent connection
-	connStr := fmt.Sprintf("user=%s password=%s host=%s port=%d sslmode=disable", user, password, host, port)
+	connStr := fmt.Sprintf("user=%s password=%s host=%s port=%d database=%s sslmode=disable", user, password, host, port, database)
 	db, err := openConnection(connStr)
 	if err != nil {
 		t.Errorf("failed to open connection %s", err)
@@ -34,13 +35,12 @@ func TestMigrate(t *testing.T) {
 
 	t.Run("RunMigrations should create a migration table if it doesn't exist", func(t *testing.T) {
 		ephemeralSession(t, db, host, port, func(session *sql.DB) {
-
 			// Check that table doesn't exist
 			verifyTableExistence(t, session, "migrations", false)
 
 			// Perform some migration
 			migrations := []Migration{
-				Migration{
+				{
 					Id: "001",
 					Statements: []string{
 						"create table test_table(id text)",
@@ -59,7 +59,7 @@ func TestMigrate(t *testing.T) {
 	t.Run("RunMigrations should skip a migration if it was already processed", func(t *testing.T) {
 		ephemeralSession(t, db, host, port, func(session *sql.DB) {
 			migrations := []Migration{
-				Migration{
+				{
 					Id: "001",
 					Statements: []string{
 						"create table test_table(id text)",
@@ -78,25 +78,25 @@ func TestMigrate(t *testing.T) {
 	t.Run("RunMigrations should return an error if some migrations are in-progress", func(t *testing.T) {
 		ephemeralSession(t, db, host, port, func(session *sql.DB) {
 			migrations := []Migration{
-				Migration{
+				{
 					Id: "001",
 					Statements: []string{
 						"create table test_table1(id text)",
 					},
 				},
-				Migration{
+				{
 					Id: "002",
 					Statements: []string{
 						"create table test_table2(id text)",
 					},
 				},
-				Migration{
+				{
 					Id: "003",
 					Statements: []string{
 						"create table test_table3(id text)",
 					},
 				},
-				Migration{
+				{
 					Id: "004",
 					Statements: []string{
 						"create table test_table4(id text)",
@@ -127,13 +127,13 @@ func TestMigrate(t *testing.T) {
 	t.Run("RunMigrations should skip in-progress migrations that are older than a specified duration", func(t *testing.T) {
 		ephemeralSession(t, db, host, port, func(session *sql.DB) {
 			migrations := []Migration{
-				Migration{
+				{
 					Id: "001",
 					Statements: []string{
 						"create table test_table1(id text)",
 					},
 				},
-				Migration{
+				{
 					Id: "002",
 					Statements: []string{
 						"create table test_table2(id text)",
@@ -155,9 +155,8 @@ func TestMigrate(t *testing.T) {
 
 	t.Run("RunMigrations should complete all migrations", func(t *testing.T) {
 		ephemeralSession(t, db, host, port, func(session *sql.DB) {
-
 			// Helper to verify inserted records
-			verifyRecords := func (expectedNumberOfRecords int) {
+			verifyRecords := func(expectedNumberOfRecords int) {
 				// Verify number or records
 				allRecords, err := getAllRecords(session)
 				if err != nil {
@@ -176,13 +175,13 @@ func TestMigrate(t *testing.T) {
 			}
 
 			migrations := []Migration{
-				Migration{
+				{
 					Id: "001",
 					Statements: []string{
 						"create table test_table1(id text)",
 					},
 				},
-				Migration{
+				{
 					Id: "002",
 					Statements: []string{
 						"create table test_table2(id text)",
@@ -228,7 +227,6 @@ func TestMigrate(t *testing.T) {
 		})
 	})
 }
-
 
 // -- Helper methods
 
@@ -297,8 +295,6 @@ func ephemeralSession(
 		return
 	}
 	defer session.Close()
-
-
 	block(session)
 }
 
@@ -320,4 +316,3 @@ func randomUser() string {
 	}
 	return fmt.Sprintf("test_%s", string(b))
 }
-

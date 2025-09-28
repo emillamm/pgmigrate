@@ -1,12 +1,13 @@
 package pgmigrate
 
 import (
-	"log"
-	"strconv"
-	_ "github.com/lib/pq"
 	"database/sql"
 	"fmt"
+	"log"
+	"strconv"
+
 	"github.com/emillamm/pgmigrate/env"
+	_ "github.com/lib/pq"
 )
 
 func Run() {
@@ -18,13 +19,14 @@ func Run() {
 	if err != nil {
 		log.Fatalf("invalid PORT %s", portStr)
 	}
+	database := env.GetenvWithDefault("POSTGRES_DATABASE", "postgres")
 	migrationDir := env.GetenvWithDefault("POSTGRES_MIGRATION_DIR", "migrations")
 	retryAfterSeconds, err := strconv.Atoi(env.GetenvWithDefault("POSTGRES_MIGRATION_RETRY_INTERVAL", "120"))
 	if err != nil {
 		log.Fatalf("invalid POSTGRES_MIGRATION_RETRY_INTERVAL %d", port)
 	}
 
-	connStr := fmt.Sprintf("user=%s password=%s host=%s port=%d sslmode=disable", user, password, host, port)
+	connStr := fmt.Sprintf("user=%s password=%s host=%s port=%d database=%s sslmode=disable", user, password, host, port, database)
 	session, err := sql.Open("postgres", connStr)
 	if err == nil {
 		err = session.Ping()
@@ -41,4 +43,3 @@ func Run() {
 		log.Fatalf("unable to complete some or all migrations: %v", err)
 	}
 }
-
