@@ -1,6 +1,7 @@
  create table chairs (
 	brand varchar(255) 
 ); 
+-- some comment
 create table tables (
   brand varchar(255)
 );

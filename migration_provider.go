@@ -1,16 +1,16 @@
 package pgmigrate
 
 import (
-	"log"
-	"os"
 	"bufio"
 	"fmt"
-	"strings"
+	"log"
+	"os"
 	"regexp"
+	"strings"
 )
 
 type Migration struct {
-	Id string
+	Id         string
 	Statements []string
 }
 
@@ -31,13 +31,14 @@ func (f *FileMigrationProvider) GetMigrations() []Migration {
 	for _, file := range files {
 		if isValidFileName(file.Name()) {
 			migration := readMigrationFromFile(f.Directory, file.Name())
-			migrations= append(migrations, migration)
+			migrations = append(migrations, migration)
 		}
 	}
 	return migrations
 }
 
 const validFileName = ".+\\.sql"
+
 func isValidFileName(fileName string) bool {
 	match, err := regexp.MatchString(validFileName, fileName)
 	if err != nil {
@@ -64,6 +65,10 @@ func readMigrationFromFile(filePath string, fileName string) Migration {
 		if line == "" {
 			continue
 		}
+		// Ignore comments
+		if strings.HasPrefix(line, "--") {
+			continue
+		}
 		fmt.Fprintf(&statement, "%s%s", whitespace, line)
 		whitespace = " "
 		if line[len(line)-1] == ';' {
@@ -75,4 +80,3 @@ func readMigrationFromFile(filePath string, fileName string) Migration {
 	id := strings.Split(fileName, ".")[0]
 	return Migration{Id: id, Statements: statements}
 }
-
