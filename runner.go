@@ -11,8 +11,8 @@ import (
 )
 
 func Run() {
-	user := env.GetenvOrFatal("POSTGRES_USER")
-	password := env.GetenvOrFatal("POSTGRES_PASSWORD")
+	user := env.GetenvWithDefault("POSTGRES_USER", "")
+	password := env.GetenvWithDefault("POSTGRES_PASSWORD", "")
 	host := env.GetenvWithDefault("POSTGRES_HOST", "localhost")
 	portStr := env.GetenvWithDefault("POSTGRES_PORT", "5432")
 	port, err := strconv.Atoi(portStr)
