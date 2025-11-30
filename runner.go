@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"strconv"
+	"time"
 
 	"github.com/emillamm/pgmigrate/env"
 	_ "github.com/lib/pq"
@@ -27,8 +28,7 @@ func Run() {
 		log.Fatalf("invalid POSTGRES_MIGRATION_RETRY_INTERVAL %d", port)
 	}
 
-	connStr := fmt.Sprintf("user=%s password=%s host=%s port=%d database=%s sslmode=disable", user, password, host, port, database)
-	session, err := sql.Open("postgres", connStr)
+	session, err := getSession(user, password, host, database, port)
 	if err == nil {
 		err = session.Ping()
 	}
@@ -43,4 +43,21 @@ func Run() {
 	if err != nil {
 		log.Fatalf("unable to complete some or all migrations: %v", err)
 	}
+}
+
+func getSession(user, password, host, database string, port int) (session *sql.DB, err error) {
+	connStr := fmt.Sprintf("user=%s password=%s host=%s port=%d database=%s sslmode=disable", user, password, host, port, database)
+	for i := 0; i < 4; i++ {
+		session, err = sql.Open("postgres", connStr)
+		if err == nil {
+			err = session.Ping()
+		}
+		if err != nil {
+			log.Println(fmt.Sprintf("failed to connect to postgres..."))
+			time.Sleep(time.Second * 5)
+		} else {
+			break
+		}
+	}
+	return
 }
