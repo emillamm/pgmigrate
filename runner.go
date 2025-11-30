@@ -12,7 +12,8 @@ import (
 
 func Run() {
 	user := env.GetenvWithDefault("POSTGRES_USER", "")
-	password := env.GetenvWithDefault("POSTGRES_PASSWORD", "")
+	// POSTGRES_PASS and POSTGRES_PASSWORD are both valid keys
+	password := env.GetenvWithDefault("POSTGRES_PASSWORD", env.GetenvWithDefault("POSTGRES_PASS", ""))
 	host := env.GetenvWithDefault("POSTGRES_HOST", "localhost")
 	portStr := env.GetenvWithDefault("POSTGRES_PORT", "5432")
 	port, err := strconv.Atoi(portStr)
@@ -32,7 +33,7 @@ func Run() {
 		err = session.Ping()
 	}
 	if err != nil {
-		log.Fatalf("unable to connect to postgres database: %v", err)
+		log.Fatalf("unable to connect to postgres database with user=%s host=%s port=%d database=%s: %v", user, host, port, database, err)
 	}
 
 	provider := FileMigrationProvider{Directory: migrationDir}
