@@ -118,14 +118,14 @@ func isCompleted(records []record, id string) bool {
 }
 
 func markAsStarted(session *sql.DB, migrationId string, currentTime time.Time) {
-	q := "insert into migrations (id, started_at) values ($1, $2) on conflict (id) do update set started_at = excluded.started_at;"
+	q := "insert into migrations (id, started_at) values ($1, $2) on conflict (id) do update set id = excluded.id, started_at = excluded.started_at;"
 	if _, err := session.Exec(q, migrationId, currentTime); err != nil {
 		log.Fatalf("failed to mark migration %s as processed: %s", migrationId, err)
 	}
 }
 
 func markAsCompleted(session *sql.DB, migrationId string, currentTime time.Time) {
-	q := "insert into migrations (id, completed_at) values ($1, $2) on conflict (id) do update set completed_at = excluded.completed_at;"
+	q := "insert into migrations (id, completed_at) values ($1, $2) on conflict (id) do update set id = excluded.id, completed_at = excluded.completed_at;"
 	if _, err := session.Exec(q, migrationId, currentTime); err != nil {
 		log.Fatalf("failed to mark migration %s as completed: %s", migrationId, err)
 	}
