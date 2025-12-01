@@ -1,11 +1,11 @@
 package pgmigrate
 
 import (
-	"fmt"
 	"database/sql"
+	"fmt"
 	"log"
-	"time"
 	"slices"
+	"time"
 )
 
 func RunMigrations(
@@ -13,7 +13,6 @@ func RunMigrations(
 	migrations []Migration,
 	retryAfterSeconds int,
 ) (completed []string, err error) {
-
 	if err = initMigrationsTable(session); err != nil {
 		err = fmt.Errorf("failed to create migrations table: %v", err)
 		return
@@ -55,7 +54,7 @@ func RunMigrations(
 }
 
 func initMigrationsTable(session *sql.DB) error {
-	query := fmt.Sprintf("create table if not exists migrations(id varchar(255) primary key, started_at timestamp, completed_at timestamp);")
+	query := fmt.Sprintf("create table if not exists migrations(id varchar(255) primary key, started_at timestamptz, completed_at timestamptz);")
 	if _, err := session.Exec(query); err != nil {
 		return err
 	}
@@ -79,8 +78,8 @@ func getStartedRecords(allRecords []record) (records []record, latest *record) {
 }
 
 type record struct {
-	id string
-	startedAt *time.Time
+	id          string
+	startedAt   *time.Time
 	completedAt *time.Time
 }
 
@@ -94,8 +93,8 @@ func getAllRecords(session *sql.DB) (migrations []record, err error) {
 	defer rows.Close()
 	for rows.Next() {
 		var (
-			id string
-			startedAt *time.Time
+			id          string
+			startedAt   *time.Time
 			completedAt *time.Time
 		)
 		if err = rows.Scan(&id, &startedAt, &completedAt); err != nil {
@@ -103,8 +102,8 @@ func getAllRecords(session *sql.DB) (migrations []record, err error) {
 			return
 		}
 		migrations = append(migrations, record{
-			id: id,
-			startedAt: startedAt,
+			id:          id,
+			startedAt:   startedAt,
 			completedAt: completedAt,
 		})
 	}
@@ -141,11 +140,11 @@ func getCurrentTime(session *sql.DB) time.Time {
 	return ts
 }
 
-type InProgressMigrationsError struct{
-	Ids []string
+type InProgressMigrationsError struct {
+	Ids                []string
 	SecondsSinceLatest float64
 }
+
 func (e InProgressMigrationsError) Error() string {
 	return fmt.Sprintf("migrations with ids %v are in progress with the most recent started %f seconds ago", e.Ids, e.SecondsSinceLatest)
 }
-
