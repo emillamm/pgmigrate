@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/emillamm/pgmigrate/env"
-	_ "github.com/lib/pq"
+	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
 func Run() {
@@ -48,7 +48,7 @@ func Run() {
 func getSession(user, password, host, database string, port int) (session *sql.DB, err error) {
 	connStr := fmt.Sprintf("user=%s password=%s host=%s port=%d database=%s sslmode=disable", user, password, host, port, database)
 	for i := 0; i < 4; i++ {
-		session, err = sql.Open("postgres", connStr)
+		session, err = sql.Open("pgx", connStr)
 		if err == nil {
 			err = session.Ping()
 		}
