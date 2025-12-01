@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/emillamm/pgmigrate/env"
-	_ "github.com/lib/pq"
+	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
 func TestMigrate(t *testing.T) {
@@ -299,7 +299,7 @@ func ephemeralSession(
 }
 
 func openConnection(connStr string) (db *sql.DB, err error) {
-	db, err = sql.Open("postgres", connStr)
+	db, err = sql.Open("pgx", connStr)
 	if db != nil {
 		err = db.Ping()
 	}
